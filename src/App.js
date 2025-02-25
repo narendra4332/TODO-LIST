@@ -1,77 +1,81 @@
+import { getDatabase, ref, set, push, onValue, remove } from 'firebase/database';
+import { app,auth } from './MyComponents/Firebase';
 import React, { useEffect, useState } from 'react';
 import Header from './MyComponents/Header';
 import { Todos } from './MyComponents/Todos';
 import { Footer } from './MyComponents/Footer';
 import { Addtodos } from './MyComponents/Addtodos';
-import { About } from './MyComponents/About';
-import { BrowserRouter, Routes, Route } from 'react-router-dom'; // Import BrowserRouter, Routes, and Route
+import { About } from './MyComponents/About';  
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Sinup from './MyComponents/Singup';
+import { onAuthStateChanged } from "firebase/auth";
 
-const App = () => {
-  let initTodo;
-  if (localStorage.getItem("todos") === null) {
-    initTodo = [];
-  }
-  else {
-    initTodo = JSON.parse(localStorage.getItem("todos"));
-  }
+const db = getDatabase(app);
+
+function App() {
+  const [todos, setTodos] = useState([]);
+  const [user, setUser] = useState(null);
+
+   useEffect(() => {
+    onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+  }, []);
+
+  // Fetch todos from Firebase on component mount
+  useEffect(() => {
+    const todosRef = ref(db, "todos");
+    onValue(todosRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const loadedTodos = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
+        setTodos(loadedTodos);
+      } else {
+        setTodos([]);
+      }
+    });
+  }, []);
 
   const onDelete = (todo) => {
-    console.log("I am ondelete of todo", todo)
-    settodos(todos.filter((e) => {
-      return e !== todo;
-    }))
-    localStorage.setItem("todos", JSON.stringify(todos));
-  }
+    remove(ref(db, `todos/${todo.id}`))
+      .then(() => console.log("Todo deleted successfully"))
+      .catch((error) => console.error("Error deleting todo: ", error));
+  };
 
-  const addtodo = (title, desc) => {
-    console.log("I am adding this todo", title, desc)
-    let sno;
-    if (todos.length === 0) {
-      sno = 0;
-    }
-    else {
-      sno = todos[todos.length - 1].sno + 1;
-    }
-    const myTodo = {
-      sno: sno,
-      title: title,
-      desc: desc
-    }
-    settodos([...todos, myTodo]);
-    console.log(myTodo)
+  const addTodo = (title, desc) => {
+    const newTodoRef = push(ref(db, "todos"));
+    const myTodo = { title, desc };
+    set(newTodoRef, myTodo)
+      .then(() => console.log("Todo added successfully"))
+      .catch((error) => console.error("Error adding todo: ", error));
+  };
 
-    localStorage.setItem("todos", JSON.stringify(todos));
-  }
-
-  const [todos, settodos] = useState(initTodo);
-
-  useEffect(() => {
-    localStorage.setItem("todos", JSON.stringify(todos));
-  }, [todos]);
-
+ 
   return (
-    <BrowserRouter> {/* Wrap the app in BrowserRouter to enable routing */}
-      <Header title="My Todos List" searchvar={true} />
-
-      <Routes> {/* Define Routes for different pages */}
-        <Route
-          path="/"
-          element={
+    <>
+      <BrowserRouter>
+        <Header title="My Todos List" searchvar={true} />
+        <Routes>
+          {user ? (
             <>
-              <Addtodos addtodo={addtodo} />
-              <Todos todos={todos} onDelete={onDelete} />
+              <Route
+                path="/"
+                element={
+                  <>
+                    <Addtodos addtodo={addTodo} />
+                    <Todos todos={todos} onDelete={onDelete} />
+                  </>
+                }
+              />
+              <Route path="/about" element={<About />} />
             </>
-          }
-        />
-
-        <Route
-          path="/about"
-          element={<About />} // About page when path is "/about"
-        />
-      </Routes>
-
-      <Footer />
-    </BrowserRouter>
+          ) : (
+            <Route path="/" element={<Sinup/>} />
+          )}
+        </Routes>
+        <Footer />
+      </BrowserRouter>
+    </>
   );
 }
 
