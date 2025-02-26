@@ -8,7 +8,7 @@ import { Addtodos } from './MyComponents/Addtodos';
 import { About } from './MyComponents/About';  
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sinup from './MyComponents/Singup';
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged,signOut } from "firebase/auth";
 
 const db = getDatabase(app);
 
@@ -23,19 +23,22 @@ function App() {
   }, []);
 
   // Fetch todos from Firebase on component mount
-  useEffect(() => {
-    const todosRef = ref(db, "todos");
-    onValue(todosRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const loadedTodos = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
-        setTodos(loadedTodos);
-      } else {
-        setTodos([]);
-      }
-    });
-  }, []);
+useEffect(() => {
+  const todosRef = ref(db, "todos");
+  const unsubscribe = onValue(todosRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      const loadedTodos = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
+      setTodos(loadedTodos);
+    } else {
+      setTodos([]);
+    }
+  });
 
+  return () => unsubscribe(); // Cleanup function (Best Practice)
+}, []);
+  
+  
   const onDelete = (todo) => {
     remove(ref(db, `todos/${todo.id}`))
       .then(() => console.log("Todo deleted successfully"))
@@ -50,11 +53,19 @@ function App() {
       .catch((error) => console.error("Error adding todo: ", error));
   };
 
+  const handelSingOut = () => {
+    signOut(auth).then(() => {
+      console.log("User signed out successfully")
+      setUser(null)
+    }).catch((error) => {
+      console.error("Error signing out: ", error)
+    })
+  }
  
   return (
     <>
       <BrowserRouter>
-        <Header title="My Todos List" searchvar={true} />
+        <Header title="My Todos List" searchvar={true} onSingOut={handelSingOut} />
         <Routes>
           {user ? (
             <>
