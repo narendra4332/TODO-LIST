@@ -23,6 +23,7 @@ export default function Header(props) {
                         <input className="form-control me-2" type="search" placeholder="Search" aria-label="Search" />
                         <button className="btn btn-outline-success" type="submit">Search</button>
                     </form> : ""}
+                        <button  className="btn btn-outline-success" style={{marginLeft:"10px"}} onClick={props.onSingOut}>Log out</button>
                 </div>
             </div>
         </nav>
