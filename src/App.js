@@ -1,59 +1,65 @@
-import { getDatabase, ref, set, push, onValue, remove } from 'firebase/database';
-import { app,auth } from './MyComponents/Firebase';
+import { getFirestore, collection, addDoc,doc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { app, auth } from './MyComponents/Firebase';
 import React, { useEffect, useState } from 'react';
 import Header from './MyComponents/Header';
 import { Todos } from './MyComponents/Todos';
 import { Footer } from './MyComponents/Footer';
 import { Addtodos } from './MyComponents/Addtodos';
-import { About } from './MyComponents/About';  
+import { About } from './MyComponents/About';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Sinup from './MyComponents/Singup';
-import { onAuthStateChanged,signOut } from "firebase/auth";
+import Signup from './MyComponents/Singup';
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
-const db = getDatabase(app);
+const db = getFirestore(app);
 
 function App() {
   const [todos, setTodos] = useState([]);
   const [user, setUser] = useState(null);
 
-   useEffect(() => {
+  useEffect(() => {
     onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
   }, []);
 
-  // Fetch todos from Firebase on component mount
-useEffect(() => {
-  const todosRef = ref(db, "todos");
-  const unsubscribe = onValue(todosRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      const loadedTodos = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
+  // Fetch todos from Firestore
+  useEffect(() => {
+    const todosRef = collection(db, "todos");
+
+    const unsubscribe = onSnapshot(todosRef, (snapshot) => {
+      const loadedTodos = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setTodos(loadedTodos);
-    } else {
-      setTodos([]);
+    });
+
+    return () => unsubscribe(); // Cleanup function
+  }, []);
+
+  // Add Todo to Firestore
+  const addTodo = async (title, desc) => {
+    try {
+      await addDoc(collection(db, "todos"), {
+        title: title,
+        desc: desc,
+        timestamp: new Date()
+      });
+      console.log("Todo added successfully");
+    } catch (error) {
+      console.error("Error adding todo: ", error);
     }
-  });
-
-  return () => unsubscribe(); // Cleanup function (Best Practice)
-}, []);
-  
-  
-  const onDelete = (todo) => {
-    remove(ref(db, `todos/${todo.id}`))
-      .then(() => console.log("Todo deleted successfully"))
-      .catch((error) => console.error("Error deleting todo: ", error));
   };
 
-  const addTodo = (title, desc) => {
-    const newTodoRef = push(ref(db, "todos"));
-    const myTodo = { title, desc };
-    set(newTodoRef, myTodo)
-      .then(() => console.log("Todo added successfully"))
-      .catch((error) => console.error("Error adding todo: ", error));
+  // Delete Todo from Firestore
+  const onDelete = async (todo) => {
+    try {
+      await deleteDoc(doc(db, "todos", todo.id));
+      console.log("Todo deleted successfully");
+    } catch (error) {
+      console.error("Error deleting todo: ", error);
+    }
   };
 
-  const handelSingOut = () => {
+  // Logout Function
+  const handleSignOut = () => {
     signOut(auth).then(() => {
       console.log("User signed out successfully")
       setUser(null)
@@ -61,11 +67,11 @@ useEffect(() => {
       console.error("Error signing out: ", error)
     })
   }
- 
+
   return (
     <>
       <BrowserRouter>
-        <Header title="My Todos List" searchvar={true} onSingOut={handelSingOut} />
+        <Header title="My Todos List" searchvar={true} onSignOut={handleSignOut} />
         <Routes>
           {user ? (
             <>
@@ -81,7 +87,7 @@ useEffect(() => {
               <Route path="/about" element={<About />} />
             </>
           ) : (
-            <Route path="/" element={<Sinup/>} />
+            <Route path="/" element={<Signup />} />
           )}
         </Routes>
         <Footer />

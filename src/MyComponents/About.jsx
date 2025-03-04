@@ -20,7 +20,7 @@ export const About = () => {
               <li>📝 Add new tasks with title and description</li>
               <li>✅ Mark tasks as completed</li>
               <li>🗑️ Delete tasks when no longer needed</li>
-              <li>📁 Data is stored in Firebase Realtime Database</li>
+              <li>📁 Data is stored in Firebase Firestore Database</li>
               <li>
                 🔐 User authentication with Firebase (Sign Up, Sign In, Google
                 Login)
